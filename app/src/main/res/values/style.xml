@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Customize your theme here. -->
+        <item name="android:statusBarColor">#EFADE4</item>
+        <item name="colorPrimary">#F1A9D7</item>
+        <item name="colorPrimaryDark">@color/gray</item> <!-- ステータスバーの色 -->
+        <item name="colorAccent">@color/status_bar_color</item>
+    </style>
+</resources>

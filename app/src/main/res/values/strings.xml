@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">りまいんちゃん</string>
+
+    <string name="title_home">ホーム</string>
+    <string name="title_chat">チャット</string>
+
+    <string name="chat_hint">メッセージを入力</string>
+    <string name="send">送信</string>
+</resources>
