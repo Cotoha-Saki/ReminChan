@@ -7,7 +7,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageButton;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -15,17 +14,22 @@ import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import android.view.MenuItem;
 import androidx.appcompat.widget.PopupMenu;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-
 import java.util.List;
-
+import com.joestelmach.natty.Parser;
+import com.joestelmach.natty.DateGroup;
+import java.util.Date;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
+import androidx.work.Data;
+import java.util.concurrent.TimeUnit;
 import xyz.cotoha.program.reminchan.R;
 import xyz.cotoha.program.reminchan.database.Message;
 import xyz.cotoha.program.reminchan.database.MessageAdapter;
 import xyz.cotoha.program.reminchan.database.MessageViewModel;
+import xyz.cotoha.program.reminchan.reminder.ReminderWorker;
 
 public class ChatFragment extends Fragment {
 
@@ -158,4 +162,50 @@ public class ChatFragment extends Fragment {
             }
         }, 2000); // 2秒後に実行
     }
+
+    private void parseReminderDate(String message) {
+        Parser parser = new Parser();
+        List<DateGroup> groups = parser.parse(message);
+
+        long reminderTime = 0; // 初期値として0を設定
+
+        if (!groups.isEmpty()) {
+            DateGroup group = groups.get(0); // 最初のDateGroupを取得
+            List<Date> dates = group.getDates();
+
+            if (!dates.isEmpty()) {
+                Date date = dates.get(0); // 最初に見つかった日時を取得
+                reminderTime = date.getTime(); // エポックタイム（ミリ秒）に変換
+            }
+        }
+
+        if (reminderTime > 0) {
+            // 解析した日時でリマインダーを設定
+            setReminder(reminderTime);
+        } else {
+            // 日時が正しく解析できなかった場合の処理（エラーメッセージの表示など）
+        }
+    }
+
+    private void setReminder(long reminderTime) {
+        long delay = reminderTime - System.currentTimeMillis(); // リマインダーまでの遅延時間を計算
+        if (delay > 0) {
+            // リマインダー情報をWorkRequestに渡すためのDataオブジェクトを作成
+            Data data = new Data.Builder()
+                    .putString("message", "リマインダーの時間です！") // 通知に表示するメッセージ
+                    .build();
+
+            // OneTimeWorkRequestを作成
+            OneTimeWorkRequest reminderWork = new OneTimeWorkRequest.Builder(ReminderWorker.class)
+                    .setInitialDelay(delay, TimeUnit.MILLISECONDS) // 計算した遅延時間を設定
+                    .setInputData(data) // データをWorkRequestに渡す
+                    .build();
+
+            // WorkManagerにWorkRequestをスケジュール
+            // WorkManagerのインスタンスを取得する正しい方法
+            WorkManager workManager = WorkManager.getInstance(requireContext().getApplicationContext());
+        }
+    }
+
+
 }

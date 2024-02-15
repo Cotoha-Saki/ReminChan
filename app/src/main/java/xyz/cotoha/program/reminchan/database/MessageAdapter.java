@@ -30,31 +30,26 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
 
 
-
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         Message currentMessage = messages.get(position);
         holder.messageTextView.setText(currentMessage.getContent());
 
-        // メッセージがユーザーのものかBOTのものかに応じてビューの位置を設定する
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
+        // メッセージビューのLayoutParamsを取得
+        LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams) holder.messageTextView.getLayoutParams();
 
         if (currentMessage.isUserMessage()) {
             // ユーザーのメッセージ: 右寄せ
-            params.gravity = Gravity.END;
-            holder.messageTextView.setLayoutParams(params);
-            // 背景、マージン、その他のスタイリングを設定
+            layoutParams.gravity = Gravity.END;
+            holder.messageTextView.setBackgroundResource(R.drawable.message_background_user);
         } else {
             // BOTのメッセージ: 左寄せ
-            params.gravity = Gravity.START;
-            holder.messageTextView.setLayoutParams(params);
-            // 背景、マージン、その他のスタイリングを設定
+            layoutParams.gravity = Gravity.START;
+            holder.messageTextView.setBackgroundResource(R.drawable.message_background_bot);
         }
-    }
 
+        holder.messageTextView.setLayoutParams(layoutParams);
+    }
 
 
     @Override
@@ -69,11 +64,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
 
     static class MessageViewHolder extends RecyclerView.ViewHolder {
-        private TextView messageTextView;
+        TextView messageTextView;
+        LinearLayout messageContainer; // メッセージのコンテナ
 
         public MessageViewHolder(View itemView) {
             super(itemView);
             messageTextView = itemView.findViewById(R.id.text_message);
+            messageContainer = itemView.findViewById(R.id.message_container); // idをレイアウトから取得
         }
     }
 }

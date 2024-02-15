@@ -34,7 +34,9 @@ dependencies {
     annotationProcessor "androidx.room:room-compiler:$room_version"
     // Kotlinを使用する場合はkaptを使用
     // kapt "androidx.room:room-compiler:$room_version"
-
+    implementation 'com.joestelmach:natty:0.13'
+    def work_version = "2.7.0" // 使用しているWorkManagerのバージョンに置き換えてください
+    implementation "androidx.work:work-runtime:$work_version"
     // ViewModel
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.1"
     // LiveData
