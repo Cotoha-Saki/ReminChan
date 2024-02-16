@@ -10,6 +10,7 @@ import android.widget.ImageButton;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -21,6 +22,7 @@ import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.Data;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import xyz.cotoha.program.reminchan.R;
@@ -52,11 +54,12 @@ public class ChatFragment extends Fragment {
         // フラグメントのレイアウトをインフレート
         View view = inflater.inflate(R.layout.fragment_chat, container, false);
 
-        // RecyclerViewのセットアップ
-        recyclerView = view.findViewById(R.id.chat_recycler_view);
-        adapter = new MessageAdapter(getContext());
+        // RecyclerViewの設定
+        RecyclerView recyclerView = view.findViewById(R.id.chat_recycler_view);
+        adapter = new MessageAdapter();
         recyclerView.setAdapter(adapter);
-        recyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
+        LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
+        recyclerView.setLayoutManager(layoutManager);
 
         // 最新のメッセージにスクロールするために、レイアウトマネージャーのスタック方向を設定
         layoutManager.setStackFromEnd(true);
@@ -81,14 +84,17 @@ public class ChatFragment extends Fragment {
     }
 
     private void sendMessage(String messageContent) {
-        // 現在時刻を取得
+        // 現在時刻をミリ秒で取得
         long currentTime = System.currentTimeMillis();
 
-        // Messageオブジェクトを作成
-        Message newMessage = new Message(messageContent, "text", currentTime, false, true);
+        // Message インスタンスを作成。ここで、メッセージタイプは"text"、リマインダー時間は設定しない(0)、
+        // リマインダーのループはしない(false)、ユーザーからのメッセージである(true)としています。
+        Message newMessage = new Message(messageContent, "text", currentTime, 0, false, true);
 
-        // ViewModelを使用してデータベースにメッセージを挿入
+        // ViewModelを通じてデータベースに新しいメッセージを挿入
         messageViewModel.insert(newMessage);
+
+        // メッセージ送信後、入力フィールドをクリアするなどの追加的なUI操作を行う
     }
 
 
@@ -119,6 +125,13 @@ public class ChatFragment extends Fragment {
 
         // MessageHandlingServiceのインスタンス化
         MessageHandlingService messageService = new MessageHandlingService(getContext(), messageViewModel);
+        messageViewModel.getAllMessages().observe(getViewLifecycleOwner(), new Observer<List<Message>>() {
+            @Override
+            public void onChanged(List<Message> messages) {
+                // Adapterに新しいデータをセットして更新
+                adapter.setMessages(messages);
+            }
+        });
 
         // 送信ボタンのクリックリスナー
         sendButton.setOnClickListener(v -> {
@@ -128,8 +141,6 @@ public class ChatFragment extends Fragment {
                 editMessage.setText("");
             }
         });
-
-        // ... その他のメソッド
     }
 
     private void displayTaskList() {
@@ -137,12 +148,15 @@ public class ChatFragment extends Fragment {
             if (tasks.isEmpty()) {
                 sendBotResponse("タスクがありません。");
             } else {
-                StringBuilder taskListStringBuilder = new StringBuilder("以下が現在設定されているタスクです：\n\n");
-                for (Task task : tasks) {
+                StringBuilder taskListStringBuilder = new StringBuilder("現在設定されているタスクは以下の通りです。\n\n");
+                for (Task task : tasks
+                ) {
                     taskListStringBuilder.append("・ ")
                             .append(task.getContent())
-                            .append(task.isReminderLoop() ? " (ループ)\n" : "\n");
+                            .append(task.isReminderLoop() ? " (ループ)" : "")
+                            .append("\n");
                 }
+                taskListStringBuilder.append("\n以上が現在設定されているタスクです。");
                 sendBotResponse(taskListStringBuilder.toString());
             }
         });
@@ -173,7 +187,6 @@ public class ChatFragment extends Fragment {
     }
 
 
-
     private void showPopupMenu(View view) {
         PopupMenu popup = new PopupMenu(getActivity(), view);
         popup.getMenuInflater().inflate(R.menu.chat_options_menu, popup.getMenu());
@@ -191,9 +204,6 @@ public class ChatFragment extends Fragment {
         popup.show();
     }
 
-
-
-    // BottomNavigationView を非表示にする
     private void hideBottomNavigation() {
         if (getActivity() != null) {
             BottomNavigationView bottomNavigationView = getActivity().findViewById(R.id.nav_view);
@@ -210,8 +220,6 @@ public class ChatFragment extends Fragment {
             bottomNavigationView.setVisibility(View.VISIBLE); // BottomNavigationViewを表示する
         }
     }
-
-
 
     private void setupRecyclerView(View view) {
         RecyclerView recyclerView = view.findViewById(R.id.chat_recycler_view);
@@ -264,22 +272,27 @@ public class ChatFragment extends Fragment {
 
 
     private void handleUserMessage(String messageContent) {
-        Date parsedDate = DateParser.parseStringToDate(messageContent);
-        if (parsedDate != null) {
-            // 日時が解析できた場合
-            setReminderForMessage(parsedDate);
-            sendBotResponse("「" + messageContent + "」を" + new SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()).format(parsedDate) + "に設定しました。");
+        if ("一覧".equals(messageContent)) {
+            displayTaskList();
         } else {
-            // 日時解析に失敗した場合
-            if (messageContent.equalsIgnoreCase("キャンセル")) {
-                // キャンセル処理
-                sendBotResponse("タスク設定をキャンセルしました。");
+            Date parsedDate = DateParser.parseStringToDate(messageContent);
+            if (parsedDate != null) {
+                // 日時が解析できた場合
+                setReminderForMessage(parsedDate);
+                sendBotResponse("「" + messageContent + "」を" + new SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()).format(parsedDate) + "に設定しました。");
             } else {
-                // ユーザーに日時の再入力を促す
-                sendBotResponse("日時を「明日の午後3時」のように入力してください。");
+                // 日時解析に失敗した場合
+                if (messageContent.equalsIgnoreCase("キャンセル")) {
+                    // キャンセル処理
+                    sendBotResponse("タスク設定をキャンセルしました。");
+                } else {
+                    // ユーザーに日時の再入力を促す
+                    sendBotResponse("日時を「明日の午後3時」のように入力してください。");
+                }
             }
         }
     }
+
 
     private void setReminderForMessage(Date date) {
         long delay = date.getTime() - System.currentTimeMillis(); // リマインダーまでの遅延時間を計算
@@ -325,4 +338,5 @@ public class ChatFragment extends Fragment {
         Message botMessage = new Message(response, "text", currentTime, 0, false, false);
         messageViewModel.insert(botMessage);
     }
+
 }

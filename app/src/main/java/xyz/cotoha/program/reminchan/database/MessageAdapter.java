@@ -4,6 +4,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -42,24 +43,28 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         if (currentMessage.isUserMessage() && currentMessage.isSeen()) {
             holder.messageSeenView.setVisibility(View.VISIBLE);
         } else {
-            holder.messageSeenView.setVisibility(View.INVISIBLE); // 既読マークを適切に表示/非表示
+            holder.messageSeenView.setVisibility(View.INVISIBLE);
         }
 
-        // ユーザーメッセージとBOTメッセージのレイアウト調整
-        LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams) holder.messageContainer.getLayoutParams();
+        // レイアウトの調整
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+
         if (currentMessage.isUserMessage()) {
-            layoutParams.gravity = Gravity.END;
-            holder.messageContainer.setBackgroundResource(R.drawable.message_background_user);
+            layoutParams.gravity = Gravity.END | Gravity.BOTTOM;
+            holder.messageTextView.setBackgroundResource(R.drawable.message_background_user);
             holder.botIcon.setVisibility(View.GONE);
         } else {
-            layoutParams.gravity = Gravity.START;
-            holder.messageContainer.setBackgroundResource(R.drawable.message_background_bot);
+            layoutParams.gravity = Gravity.START | Gravity.BOTTOM;
+            holder.messageTextView.setBackgroundResource(R.drawable.message_background_bot);
             holder.botIcon.setVisibility(View.VISIBLE);
         }
-        holder.messageContainer.setLayoutParams(layoutParams);
+
+// RecyclerViewの子要素なので、holder.itemViewにLayoutParamsを設定
+        holder.itemView.setLayoutParams(layoutParams);
     }
 
-    @Override
+            @Override
     public int getItemCount() {
         return messages.size();
     }
