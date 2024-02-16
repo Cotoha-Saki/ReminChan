@@ -6,4 +6,9 @@
 
     <string name="chat_hint">メッセージを入力</string>
     <string name="send">送信</string>
+
+    <string name="channel_name">リマインダー通知</string>
+    <string name="channel_description">リマインダー通知の詳細</string>
+
+    <string name="delete_task">タスク一覧</string>
 </resources>

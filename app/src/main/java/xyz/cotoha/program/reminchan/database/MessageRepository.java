@@ -17,12 +17,24 @@ public class MessageRepository {
         allMessages = messageDao.getAllMessages();
     }
 
-    LiveData<List<Message>> getAllMessages() {
+    public LiveData<List<Message>> getAllMessages() {
         return allMessages;
+    }
+
+    public LiveData<Message> getLastUserMessage() {
+        return messageDao.getLastUserMessage();
     }
 
     public void insert(Message message) {
         new insertAsyncTask(messageDao).execute(message);
+    }
+
+    public void update(Message message) {
+        new updateAsyncTask(messageDao).execute(message);
+    }
+
+    public void delete(Message message) {
+        new deleteAsyncTask(messageDao).execute(message);
     }
 
     private static class insertAsyncTask extends AsyncTask<Message, Void, Void> {
@@ -39,5 +51,31 @@ public class MessageRepository {
         }
     }
 
-    // 必要に応じて他の操作（update, delete等）のためのメソッドを追加
+    private static class updateAsyncTask extends AsyncTask<Message, Void, Void> {
+        private MessageDao asyncTaskDao;
+
+        updateAsyncTask(MessageDao dao) {
+            asyncTaskDao = dao;
+        }
+
+        @Override
+        protected Void doInBackground(final Message... params) {
+            asyncTaskDao.update(params[0]);
+            return null;
+        }
+    }
+
+    private static class deleteAsyncTask extends AsyncTask<Message, Void, Void> {
+        private MessageDao asyncTaskDao;
+
+        deleteAsyncTask(MessageDao dao) {
+            asyncTaskDao = dao;
+        }
+
+        @Override
+        protected Void doInBackground(final Message... params) {
+            asyncTaskDao.delete(params[0]);
+            return null;
+        }
+    }
 }

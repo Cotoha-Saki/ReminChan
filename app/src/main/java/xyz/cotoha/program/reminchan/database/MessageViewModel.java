@@ -1,7 +1,7 @@
 package xyz.cotoha.program.reminchan.database;
 
 import android.app.Application;
-
+import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 
@@ -11,7 +11,7 @@ public class MessageViewModel extends AndroidViewModel {
     private MessageRepository repository;
     private LiveData<List<Message>> allMessages;
 
-    public MessageViewModel(Application application) {
+    public MessageViewModel(@NonNull Application application) {
         super(application);
         repository = new MessageRepository(application);
         allMessages = repository.getAllMessages();
@@ -25,5 +25,15 @@ public class MessageViewModel extends AndroidViewModel {
         repository.insert(message);
     }
 
-    // 必要に応じて他のデータベース操作（update, delete等）を追加
+    public LiveData<Message> getLastUserMessage() {
+        return repository.getLastUserMessage();
+    }
+
+    public void update(Message message) {
+        repository.update(message);
+    }
+
+    public void delete(Message message) {
+        repository.delete(message);
+    }
 }

@@ -2,6 +2,7 @@ package xyz.cotoha.program.reminchan.fragment;
 
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,6 +35,8 @@ import xyz.cotoha.program.reminchan.reminder.ReminderWorker;
 public class ChatFragment extends Fragment {
 
     private MessageViewModel messageViewModel;
+    private MessageAdapter adapter; // ここでメンバー変数として追加
+    private RecyclerView recyclerView;
 
     @Nullable
     @Override
@@ -48,42 +51,79 @@ public class ChatFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         hideBottomNavigation();
 
-        RecyclerView recyclerView = view.findViewById(R.id.chat_recycler_view);
-        final MessageAdapter adapter = new MessageAdapter();
+        recyclerView = view.findViewById(R.id.chat_recycler_view);
+        adapter = new MessageAdapter();
         LinearLayoutManager layoutManager = new LinearLayoutManager(getActivity());
-        layoutManager.setReverseLayout(true); // 追加: リストを逆順に表示
-        layoutManager.setStackFromEnd(true); // 追加: 新しいメッセージをリストの下部から開始
+        layoutManager.setReverseLayout(true);
+        layoutManager.setStackFromEnd(true); // リストのアイテムが下部から始まるように設定
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setAdapter(adapter);
-
 
         messageViewModel = new ViewModelProvider(this).get(MessageViewModel.class);
         messageViewModel.getAllMessages().observe(getViewLifecycleOwner(), new Observer<List<Message>>() {
             @Override
             public void onChanged(@Nullable final List<Message> messages) {
-                // Update the cached copy of the messages in the adapter.
                 adapter.setMessages(messages);
+                if (messages != null && !messages.isEmpty()) {
+                    recyclerView.post(() -> {
+                        // ここでメッセージのリストが更新された後に最下部へスクロールします。
+                        recyclerView.scrollToPosition(adapter.getItemCount() - 1);
+                    });
+                }
             }
         });
 
         ImageButton sendButton = view.findViewById(R.id.button_send);
         EditText editMessage = view.findViewById(R.id.edit_message);
 
-        sendButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                String messageContent = editMessage.getText().toString();
-                if (!messageContent.isEmpty()) {
-                    long currentTime = System.currentTimeMillis();
-                    Message message = new Message(messageContent, "text", currentTime, 0, false, true);
-                    messageViewModel.insert(message);
-                    editMessage.setText("");
+        sendButton.setOnClickListener(v -> {
+            String messageContent = editMessage.getText().toString().trim();
+            if (!messageContent.isEmpty()) {
+                long currentTime = System.currentTimeMillis();
+                Message message = new Message(messageContent, "text", currentTime, 0, false, true);
+                messageViewModel.insert(message);
+                editMessage.setText("");
 
-                    simulateBotResponse();
+                // LiveDataの更新を待たずにRecyclerViewを最下部にスクロール
+                recyclerView.post(() -> recyclerView.scrollToPosition(adapter.getItemCount() - 1));
+            }
+        });
+    }
+
+
+
+    private void displayTaskList() {
+        messageViewModel.getAllMessages().observe(getViewLifecycleOwner(), new Observer<List<Message>>() {
+            @Override
+            public void onChanged(@Nullable final List<Message> messages) {
+                if (messages == null || messages.isEmpty()) {
+                    Log.d("ChatFragment", "No tasks found, sending bot response"); // デバッグログ
+                    sendBotResponse("タスクがありません。");
+                } else {
+                    adapter.setMessages(messages);
                 }
             }
         });
     }
+
+    private void sendBotResponse(String response) {
+        Log.d("ChatFragment", "sendBotResponse called with: " + response); // 追加
+        long currentTime = System.currentTimeMillis();
+        Message botMessage = new Message(response, "text", currentTime, 0, false, false);
+        messageViewModel.insert(botMessage);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // アダプタのアイテム数が0より大きい場合にのみスクロール
+        if (adapter.getItemCount() > 0) {
+            recyclerView.post(() -> recyclerView.scrollToPosition(0));
+        }
+    }
+
+
+
 
 
     private void setupToolbar(View view) {
@@ -154,38 +194,49 @@ public class ChatFragment extends Fragment {
         new Handler().postDelayed(new Runnable() {
             @Override
             public void run() {
-                // ここでBOTのレスポンスを生成して挿入
-                String botResponse = "リマインダーの設定日時を教えてください。";
-                long currentTime = System.currentTimeMillis();
-                Message botMessage = new Message(botResponse, "text", currentTime, 0, false, false);
-                messageViewModel.insert(botMessage);
+                // データベースからユーザーの最後のメッセージを取得し、それに基づいて応答を生成
+                messageViewModel.getLastUserMessage().observe(getViewLifecycleOwner(), new Observer<Message>() {
+                    @Override
+                    public void onChanged(Message lastUserMessage) {
+                        if (lastUserMessage != null && lastUserMessage.isUserMessage()) {
+                            // ユーザーの最後のメッセージを既読に設定
+                            lastUserMessage.setSeen(true);
+                            messageViewModel.update(lastUserMessage);
+
+                            // BOTからの応答を生成
+                            String botResponse = "リマインダーの設定日時を教えてください。";
+                            long currentTime = System.currentTimeMillis();
+                            Message botMessage = new Message(botResponse, "text", currentTime, 0, false, false);
+                            messageViewModel.insert(botMessage);
+                        }
+                    }
+                });
             }
         }, 2000); // 2秒後に実行
     }
+
+
 
     private void parseReminderDate(String message) {
         Parser parser = new Parser();
         List<DateGroup> groups = parser.parse(message);
 
-        long reminderTime = 0; // 初期値として0を設定
-
         if (!groups.isEmpty()) {
-            DateGroup group = groups.get(0); // 最初のDateGroupを取得
+            DateGroup group = groups.get(0);
             List<Date> dates = group.getDates();
 
             if (!dates.isEmpty()) {
-                Date date = dates.get(0); // 最初に見つかった日時を取得
-                reminderTime = date.getTime(); // エポックタイム（ミリ秒）に変換
+                Date date = dates.get(0);
+                long reminderTime = date.getTime();
+                setReminder(reminderTime);
+                return; // 日時解析に成功した場合はここで処理を終了
             }
         }
 
-        if (reminderTime > 0) {
-            // 解析した日時でリマインダーを設定
-            setReminder(reminderTime);
-        } else {
-            // 日時が正しく解析できなかった場合の処理（エラーメッセージの表示など）
-        }
+        // 日時解析に失敗した場合、または日時指定以外のメッセージに対する処理
+        simulateBotResponse();
     }
+
 
     private void setReminder(long reminderTime) {
         long delay = reminderTime - System.currentTimeMillis(); // リマインダーまでの遅延時間を計算

@@ -11,7 +11,6 @@ import java.util.List;
 
 @Dao
 public interface MessageDao {
-
     @Insert
     void insert(Message message);
 
@@ -24,6 +23,8 @@ public interface MessageDao {
     @Query("SELECT * FROM message_table ORDER BY timestamp DESC")
     LiveData<List<Message>> getAllMessages();
 
-    @Query("DELETE FROM message_table")
-    void deleteAllMessages();
+    @Query("SELECT * FROM message_table WHERE isUserMessage = 1 ORDER BY timestamp DESC LIMIT 1")
+    LiveData<Message> getLastUserMessage();
+
+
 }
