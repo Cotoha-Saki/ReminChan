@@ -1,6 +1,7 @@
 package xyz.cotoha.program.reminchan.database;
 
 import static androidx.work.impl.WorkDatabaseMigrations.MIGRATION_1_2;
+import static androidx.work.impl.WorkDatabaseMigrations.MIGRATION_3_4;
 
 import android.content.Context;
 import androidx.room.Database;
@@ -12,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 import xyz.cotoha.program.reminchan.tasks.database.Task;
 import xyz.cotoha.program.reminchan.tasks.database.TaskDao;
 
-@Database(entities = {Message.class, Task.class}, version = 3, exportSchema = false) // versionを上げ、Taskクラスをentitiesに追加
+@Database(entities = {Message.class, Task.class}, version = 4, exportSchema = false) // versionを上げ、Taskクラスをentitiesに追加
 public abstract class AppDatabase extends RoomDatabase {
 
     public abstract MessageDao messageDao();
@@ -26,7 +27,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "app_database")
-                            .addMigrations(MIGRATION_2_3) // 新しいマイグレーションを追加
+                            .addMigrations(MIGRATION_3_4) // 新しいマイグレーションを追加
                             .fallbackToDestructiveMigration()
                             .build();
                 }
@@ -36,7 +37,7 @@ public abstract class AppDatabase extends RoomDatabase {
     }
 
     // スキーマバージョン2から3へのマイグレーションを追加する
-    static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+    static final Migration MIGRATION_3_4 = new Migration(2, 3) {
         @Override
         public void migrate(SupportSQLiteDatabase database) {
             // Taskテーブルを作成するSQLコマンド

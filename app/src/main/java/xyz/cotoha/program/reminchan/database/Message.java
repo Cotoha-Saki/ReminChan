@@ -18,7 +18,6 @@ public class Message {
     public boolean isUserMessage; // ユーザーが送信したメッセージかどうか
 
 
-
     // コンストラクタ
     public Message(String content, String messageType, long timestamp, long reminderTime, boolean isReminderLoop, boolean isUserMessage) {
         this.content = content;
